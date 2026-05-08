@@ -1,0 +1,4 @@
+<resources>
+  <string name="app_name">Habit</string>
+  <string name="habit_widget_description">Today’s habit progress</string>
+</resources>

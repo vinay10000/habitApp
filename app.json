@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Habit",
+    "slug": "minimal-ai-habit-tracker",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "habit",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.mhvin.habit",
+      "versionCode": 1,
+      "permissions": [
+        "RECORD_AUDIO",
+        "POST_NOTIFICATIONS"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#0D0F12"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-asset",
+      "expo-speech-recognition",
+      "./plugins/with-android-habit-widget",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "9b6abe47-6450-4adf-a308-9ba1d044c5fd"
+      }
+    },
+    "owner": "cyanz0"
+  }
+}
