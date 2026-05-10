@@ -3,10 +3,11 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { BlurView } from "expo-blur";
 import * as Haptics from "expo-haptics";
 import { Redirect, Tabs, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   type GestureResponderEvent,
+  PanResponder,
   Platform,
   Pressable,
   StyleSheet,
@@ -16,7 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { getTabIndexFromLocation } from "@/components/bottom-nav-hit-test";
+import { getTabIndexFromLocation, getVoiceActionFromVerticalSwipe, type VoiceAction } from "@/components/bottom-nav-hit-test";
 import { useOnboardingStore } from "@/store/onboardingStore";
 import { radius, spacing } from "@/theme/tokens";
 import { useThemeTokens } from "@/theme/useThemeTokens";
@@ -58,6 +59,7 @@ function FloatingGlassTabBar({ state, descriptors, navigation }: BottomTabBarPro
     visibleTabs.findIndex((tab) => tab.name === activeRouteName)
   );
   const [previewIndex, setPreviewIndex] = useState(activeIndex);
+  const [voiceAction, setVoiceAction] = useState<VoiceAction>("voice");
   const [barWidth, setBarWidth] = useState(navWidth);
   const [dragging, setDragging] = useState(false);
   const barRef = useRef<View>(null);
@@ -67,6 +69,7 @@ function FloatingGlassTabBar({ state, descriptors, navigation }: BottomTabBarPro
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [indicator] = useState(() => new Animated.Value(activeIndex));
   const [barScale] = useState(() => new Animated.Value(1));
+  const [voiceSlide] = useState(() => new Animated.Value(0));
   const displayIndex = dragging ? previewIndex : activeIndex;
   const indicatorWidth = barWidth / visibleTabs.length;
 
@@ -146,6 +149,43 @@ function FloatingGlassTabBar({ state, descriptors, navigation }: BottomTabBarPro
       }
     },
     [navigation, state.index, state.routes]
+  );
+
+  const setVoiceMode = useCallback(
+    (nextAction: VoiceAction) => {
+      if (voiceAction === nextAction) {
+        return;
+      }
+
+      setVoiceAction(nextAction);
+      triggerSelectionHaptic();
+      voiceSlide.setValue(nextAction === "manual" ? -14 : 14);
+      Animated.spring(voiceSlide, {
+        toValue: 0,
+        damping: 15,
+        stiffness: 260,
+        mass: 0.7,
+        useNativeDriver: true
+      }).start();
+    },
+    [voiceAction, voiceSlide]
+  );
+
+  const voicePanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gestureState) =>
+          Math.abs(gestureState.dy) > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx),
+        onPanResponderRelease: (_event, gestureState) => {
+          const nextAction = getVoiceActionFromVerticalSwipe(voiceAction, 0, gestureState.dy);
+          setVoiceMode(nextAction);
+        },
+        onPanResponderTerminate: (_event, gestureState) => {
+          const nextAction = getVoiceActionFromVerticalSwipe(voiceAction, 0, gestureState.dy);
+          setVoiceMode(nextAction);
+        }
+      }),
+    [setVoiceMode, voiceAction]
   );
 
   const clearLongPressTimer = useCallback(() => {
@@ -304,27 +344,35 @@ function FloatingGlassTabBar({ state, descriptors, navigation }: BottomTabBarPro
           </View>
         </Animated.View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Add habit by voice"
-          onPress={() => {
-            triggerCommitHaptic();
-            router.push("/voice");
-          }}
-          style={({ pressed }) => [
-            styles.voiceTab,
-            {
-              width: voiceButtonSize,
-              height: voiceButtonSize,
-              backgroundColor: colors.accent,
-              borderColor: colors.accent,
-              shadowColor: colors.accent
-            },
-            pressed && styles.voiceTabPressed
-          ]}
-        >
-          <Ionicons name="mic" size={24} color={colors.accentText} />
-        </Pressable>
+        <View {...voicePanResponder.panHandlers} style={styles.voiceActionWrap}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={voiceAction === "voice" ? "Add habit by voice" : "Add habit manually"}
+            onPress={() => {
+              triggerCommitHaptic();
+              router.push(voiceAction === "voice" ? "/voice" : "/add");
+            }}
+            style={({ pressed }) => [
+              styles.voiceTab,
+              {
+                width: voiceButtonSize,
+                height: voiceButtonSize,
+                backgroundColor: voiceAction === "voice" ? colors.accent : colors.surface,
+                borderColor: voiceAction === "voice" ? colors.accent : colors.lineStrong,
+                shadowColor: colors.accent
+              },
+              pressed && styles.voiceTabPressed
+            ]}
+          >
+            <Animated.View style={{ transform: [{ translateY: voiceSlide }] }}>
+              <Ionicons name={voiceAction === "voice" ? "mic" : "add"} size={voiceAction === "voice" ? 24 : 28} color={voiceAction === "voice" ? colors.accentText : colors.accent} />
+            </Animated.View>
+          </Pressable>
+          <View pointerEvents="none" style={styles.voicePagerDots}>
+            <View style={[styles.voicePagerDot, { backgroundColor: voiceAction === "voice" ? colors.accent : colors.lineStrong }]} />
+            <View style={[styles.voicePagerDot, { backgroundColor: voiceAction === "manual" ? colors.accent : colors.lineStrong }]} />
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -430,6 +478,23 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 14 },
     shadowRadius: 24,
     elevation: 12
+  },
+  voiceActionWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5
+  },
+  voicePagerDots: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    height: 8
+  },
+  voicePagerDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3
   },
   voiceTabPressed: {
     opacity: 0.82,
