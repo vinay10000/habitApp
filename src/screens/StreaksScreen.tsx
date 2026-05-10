@@ -31,7 +31,7 @@ export default function StreaksScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHeader showBack={false} eyebrow="Streaks" title="Momentum without pressure." />
 
         <View style={styles.heroCard}>
@@ -100,7 +100,7 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
     },
     heroCard: {
       minHeight: 136,
-      borderRadius: radius.lg,
+      borderRadius: radius.xl,
       padding: spacing.lg,
       backgroundColor: colors.surfaceElevated,
       borderWidth: 1,
@@ -113,7 +113,8 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
       color: colors.accent,
       fontSize: 66,
       lineHeight: 72,
-      fontWeight: "900"
+      fontWeight: "900",
+      fontVariant: ["tabular-nums"]
     },
     heroCopy: {
       flex: 1,
@@ -161,7 +162,7 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
       textTransform: "uppercase"
     },
     card: {
-      borderRadius: radius.lg,
+      borderRadius: radius.xl,
       padding: spacing.md,
       gap: spacing.md,
       backgroundColor: colors.surface,

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { isHabitComplete, nextCompletionCount } from "../features/habits/completion";
+import { addHabitDefaults, addHabitPresets, draftFromPreset } from "../features/habits/addHabitDraft";
 import { isHabitActiveOnDate, isHabitScheduledForDate } from "../features/habits/schedule";
 import { calculateCurrentStreak } from "../features/streaks/streaks";
 import type { Habit, HabitCompletion } from "../types/habit";
@@ -40,5 +41,32 @@ assert.equal(calculateCurrentStreak(habit, [completion], new Date("2026-05-07T12
 assert.equal(calculateCurrentStreak(negativeHabit, [], new Date("2026-05-07T12:00:00")), 7);
 assert.equal(calculateCurrentStreak({ ...negativeHabit, createdAt: "2026-05-07T00:00:00.000Z" }, [], new Date("2026-05-07T12:00:00")), 1);
 assert.equal(isHabitActiveOnDate({ ...habit, createdAt: "2026-05-08T00:00:00.000Z" }, new Date("2026-05-07T12:00:00")), false);
+assert.deepEqual(addHabitDefaults, {
+  title: "",
+  type: "binary",
+  category: "personal",
+  schedule: { kind: "daily" },
+  timeOfDay: "anytime",
+  reminderMode: "default",
+  targetCount: ""
+});
+assert.deepEqual(draftFromPreset(addHabitPresets[0]), {
+  title: "Drink water",
+  type: "count",
+  category: "health",
+  schedule: { kind: "daily" },
+  timeOfDay: "morning",
+  reminderMode: "default",
+  targetCount: "8"
+});
+assert.deepEqual(draftFromPreset(addHabitPresets.find((preset) => preset.title === "No sugar")!), {
+  title: "No sugar",
+  type: "negative",
+  category: "health",
+  schedule: { kind: "daily" },
+  timeOfDay: "anytime",
+  reminderMode: "default",
+  targetCount: ""
+});
 
 console.log("domain tests passed");

@@ -89,7 +89,8 @@ function normalizeDraft(value: unknown): AIHabitDraft | null {
     schedule,
     timeOfDay: value.timeOfDay,
     category: value.category,
-    ...(targetCount ? { targetCount } : {})
+    ...(targetCount ? { targetCount } : {}),
+    ...(typeof value.reminderTime === "string" && /^\d{2}:\d{2}$/.test(value.reminderTime) ? { reminderTime: value.reminderTime } : {})
   };
 }
 
@@ -144,6 +145,13 @@ function normalizePatch(value: unknown): AIHabitPatch | null {
     if (targetCount) {
       patch.targetCount = targetCount;
     }
+  }
+
+  if (value.reminderTime !== undefined) {
+    if (typeof value.reminderTime !== "string" || !/^\d{2}:\d{2}$/.test(value.reminderTime)) {
+      return null;
+    }
+    patch.reminderTime = value.reminderTime;
   }
 
   return patch;

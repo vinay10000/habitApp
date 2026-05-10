@@ -68,7 +68,7 @@ export function ScreenHeader({
 function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
   return StyleSheet.create({
     container: {
-      gap: spacing.lg,
+      gap: spacing.md,
       marginBottom: spacing.sm
     },
     topRow: {
@@ -79,8 +79,8 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
     backButton: {
       width: 44,
       height: 44,
-      borderRadius: radius.md,
-      backgroundColor: colors.surface,
+      borderRadius: radius.pill,
+      backgroundColor: colors.surfaceMuted,
       borderWidth: 1,
       borderColor: colors.line,
       alignItems: "center",
@@ -89,7 +89,7 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
     actionButton: {
       minHeight: 44,
       paddingHorizontal: spacing.md,
-      borderRadius: radius.md,
+      borderRadius: radius.pill,
       backgroundColor: colors.accent,
       alignItems: "center",
       justifyContent: "center"
@@ -110,12 +110,13 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
       color: colors.accent,
       fontSize: typography.meta,
       fontWeight: "900",
-      textTransform: "uppercase"
+      textTransform: "uppercase",
+      letterSpacing: 0
     },
     title: {
       color: colors.text,
-      fontSize: 31,
-      lineHeight: 36,
+      fontSize: typography.title,
+      lineHeight: 39,
       fontWeight: "900",
       maxWidth: 330
     },

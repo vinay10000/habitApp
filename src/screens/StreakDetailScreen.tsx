@@ -83,7 +83,7 @@ export default function StreakDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <Pressable onPress={() => router.back()} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Back to streaks">
             <Ionicons name="chevron-back" size={20} color={colors.text} />
@@ -261,7 +261,8 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
     metricValue: {
       color: colors.tertiary,
       fontSize: 24,
-      fontWeight: "900"
+      fontWeight: "900",
+      fontVariant: ["tabular-nums"]
     },
     metricSuffix: {
       color: colors.text,

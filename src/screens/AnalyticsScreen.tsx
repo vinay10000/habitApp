@@ -59,7 +59,7 @@ export default function AnalyticsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHeader showBack={false} eyebrow="Analytics" title="Signals, not clutter." />
 
         <View style={styles.metricHero}>
@@ -121,7 +121,7 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
     },
     metricHero: {
       minHeight: 156,
-      borderRadius: radius.lg,
+      borderRadius: radius.xl,
       padding: spacing.lg,
       justifyContent: "flex-end",
       backgroundColor: colors.surfaceElevated,
@@ -146,12 +146,14 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
       color: colors.accent,
       fontSize: 70,
       lineHeight: 76,
-      fontWeight: "900"
+      fontWeight: "900",
+      fontVariant: ["tabular-nums"]
     },
     metricSmall: {
       color: colors.text,
       fontSize: 30,
-      fontWeight: "900"
+      fontWeight: "900",
+      fontVariant: ["tabular-nums"]
     },
     metricTiny: {
       color: colors.accent,

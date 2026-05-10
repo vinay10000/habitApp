@@ -36,6 +36,7 @@ export function HabitRow({ habit, completions, onComplete, onArchive }: HabitRow
   const styles = createStyles(tokens);
   const { colors } = tokens;
   const [translateX] = useState(() => new Animated.Value(0));
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const dateKey = toDateKey();
   const completion = getCompletionForHabit(habit.id, completions, dateKey);
   const completed = isHabitComplete(habit, completions, dateKey);
@@ -59,13 +60,16 @@ export function HabitRow({ habit, completions, onComplete, onArchive }: HabitRow
       PanResponder.create({
         onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
         onPanResponderMove: (_, gesture) => {
-          const clamped = Math.max(-94, Math.min(94, gesture.dx));
+          const clamped = Math.max(-22, Math.min(22, gesture.dx));
           translateX.setValue(clamped);
         },
         onPanResponderRelease: (_, gesture) => {
-          const next = Math.abs(gesture.dx) > 54 ? (gesture.dx > 0 ? 88 : -88) : 0;
+          if (Math.abs(gesture.dx) > 54 && onArchive) {
+            setConfirmingDelete(true);
+          }
+
           Animated.spring(translateX, {
-            toValue: next,
+            toValue: 0,
             useNativeDriver: true,
             speed: 18,
             bounciness: 5
@@ -80,7 +84,7 @@ export function HabitRow({ habit, completions, onComplete, onArchive }: HabitRow
           }).start();
         }
       }),
-    [translateX]
+    [onArchive, translateX]
   );
 
   const closeSwipe = () => {
@@ -94,32 +98,39 @@ export function HabitRow({ habit, completions, onComplete, onArchive }: HabitRow
 
   const archive = () => {
     closeSwipe();
+    setConfirmingDelete(false);
     onArchive?.();
   };
 
-  return (
-    <View style={styles.swipeWrap}>
-      {onArchive ? (
-        <View style={styles.deleteUnderlay}>
-          <Pressable onPress={archive} style={styles.deleteButton} accessibilityRole="button" accessibilityLabel={`Delete ${habit.title}`}>
-            <Ionicons name="trash-outline" size={18} color={colors.accentText} />
-            <Text style={styles.deleteText}>Delete</Text>
-          </Pressable>
-          <Pressable onPress={archive} style={styles.deleteButton} accessibilityRole="button" accessibilityLabel={`Delete ${habit.title}`}>
-            <Text style={styles.deleteText}>Delete</Text>
-            <Ionicons name="trash-outline" size={18} color={colors.accentText} />
-          </Pressable>
-        </View>
-      ) : null}
+  const handlePress = () => {
+    if (confirmingDelete) {
+      setConfirmingDelete(false);
+      return;
+    }
 
+    onComplete();
+  };
+
+  const showDeleteConfirmation = () => {
+    if (!onArchive) {
+      return;
+    }
+
+    closeSwipe();
+    setConfirmingDelete(true);
+  };
+
+  return (
+    <View style={[styles.swipeWrap, confirmingDelete && styles.swipeWrapConfirming]}>
       <Animated.View style={{ transform: [{ translateX }] }} {...panResponder.panHandlers}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={completed ? `Mark ${habit.title} incomplete` : habit.type === "negative" ? `Log a slip for ${habit.title}` : `Complete ${habit.title}`}
-          accessibilityHint={onArchive ? "Tap to update today. Swipe left or right to delete." : "Updates today's progress"}
-          onPress={onComplete}
-          onLongPress={onArchive}
+          accessibilityHint={onArchive ? "Tap to update today. Long press to show delete options." : "Updates today's progress"}
+          onPress={handlePress}
+          onLongPress={showDeleteConfirmation}
           delayLongPress={520}
+          android_ripple={{ color: colors.whiteGlass }}
           style={({ pressed }) => [styles.row, completed && styles.rowDone, pressed && styles.rowPressed]}
         >
           <View style={[styles.iconBox, completed && styles.iconBoxDone]}>
@@ -143,6 +154,22 @@ export function HabitRow({ habit, completions, onComplete, onArchive }: HabitRow
           <Text style={styles.countLabel}>{countLabel}</Text>
         </Pressable>
       </Animated.View>
+
+      {confirmingDelete ? (
+        <View style={styles.confirmPanel}>
+          <View style={styles.confirmCopy}>
+            <Text style={styles.confirmTitle}>Delete habit?</Text>
+            <Text style={styles.confirmText} numberOfLines={1}>{habit.title}</Text>
+          </View>
+          <Pressable onPress={() => setConfirmingDelete(false)} style={styles.keepButton} accessibilityRole="button" accessibilityLabel={`Keep ${habit.title}`}>
+            <Text style={styles.keepText}>Keep</Text>
+          </Pressable>
+          <Pressable onPress={archive} style={styles.confirmDeleteButton} accessibilityRole="button" accessibilityLabel={`Confirm delete ${habit.title}`}>
+            <Ionicons name="trash-outline" size={16} color={colors.accentText} />
+            <Text style={styles.confirmDeleteText}>Delete</Text>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -150,58 +177,100 @@ export function HabitRow({ habit, completions, onComplete, onArchive }: HabitRow
 function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
   return StyleSheet.create({
     swipeWrap: {
-      borderRadius: radius.lg,
+      borderRadius: radius.xl,
       overflow: "hidden"
     },
-    deleteUnderlay: {
-      ...StyleSheet.absoluteFillObject,
-      borderRadius: radius.lg,
+    swipeWrapConfirming: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.danger
+    },
+    confirmPanel: {
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.md,
+      backgroundColor: colors.surface,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm
+    },
+    confirmCopy: {
+      flex: 1,
+      minWidth: 0
+    },
+    confirmTitle: {
+      color: colors.text,
+      fontSize: typography.meta,
+      fontWeight: "900"
+    },
+    confirmText: {
+      color: colors.textMuted,
+      fontSize: typography.tiny,
+      lineHeight: 16,
+      fontWeight: "700"
+    },
+    keepButton: {
+      minHeight: 38,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.surfaceMuted,
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    keepText: {
+      color: colors.text,
+      fontSize: typography.meta,
+      fontWeight: "900"
+    },
+    confirmDeleteButton: {
+      minHeight: 38,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.pill,
       backgroundColor: colors.danger,
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: spacing.md
-    },
-    deleteButton: {
-      minWidth: 86,
-      minHeight: 58,
-      borderRadius: radius.md,
-      alignItems: "center",
       justifyContent: "center",
-      flexDirection: "row",
       gap: spacing.xs
     },
-    deleteText: {
+    confirmDeleteText: {
       color: colors.accentText,
       fontSize: typography.meta,
       fontWeight: "900"
     },
     row: {
-      minHeight: 82,
-      borderRadius: radius.lg,
+      minHeight: 84,
+      borderRadius: radius.xl,
       padding: spacing.md,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.line,
       flexDirection: "row",
       alignItems: "center",
-      gap: spacing.md
+      gap: spacing.md,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
     },
     rowDone: {
       backgroundColor: colors.accentSoft,
-      borderColor: colors.lineStrong
+      borderColor: colors.accent,
+      shadowColor: colors.accent,
+      shadowOpacity: 0.1,
     },
     rowPressed: {
-      transform: [{ scale: 0.99 }],
-      opacity: 0.94
+      transform: [{ scale: 0.98 }],
+      opacity: 0.9
     },
     iconBox: {
-      width: 44,
-      height: 44,
-      borderRadius: radius.md,
+      width: 48,
+      height: 48,
+      borderRadius: radius.lg,
       backgroundColor: colors.surfaceMuted,
       borderWidth: 1,
-      borderColor: colors.line,
+      borderColor: colors.lineStrong,
       alignItems: "center",
       justifyContent: "center"
     },
@@ -211,54 +280,59 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
     },
     copy: {
       flex: 1,
-      gap: 5,
+      gap: 4,
       minWidth: 0
     },
     metaRow: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 5
+      gap: 6
     },
     category: {
-      color: colors.tertiary,
-      fontSize: typography.tiny,
+      color: colors.accent,
+      fontSize: 10,
       fontWeight: "900",
-      textTransform: "uppercase"
+      textTransform: "uppercase",
+      letterSpacing: 0.8
     },
     dot: {
-      color: colors.textMuted,
-      fontSize: typography.tiny,
+      color: colors.lineStrong,
+      fontSize: 10,
       fontWeight: "800"
     },
     streak: {
       color: colors.textMuted,
-      fontSize: typography.tiny,
-      fontWeight: "800",
-      textTransform: "uppercase"
+      fontSize: 10,
+      fontWeight: "900",
+      textTransform: "uppercase",
+      letterSpacing: 0.5
     },
     title: {
       color: colors.text,
-      fontSize: typography.body,
-      fontWeight: "900"
+      fontSize: 17,
+      fontWeight: "900",
+      letterSpacing: 0
     },
     progressTrack: {
-      height: 5,
+      height: 6,
       borderRadius: radius.pill,
       backgroundColor: colors.surfaceMuted,
+      marginTop: 6,
       overflow: "hidden"
     },
     progressFill: {
       height: "100%",
       borderRadius: radius.pill,
-      backgroundColor: colors.accent
+      backgroundColor: colors.accent,
     },
     countLabel: {
       color: colors.textMuted,
-      fontSize: typography.tiny,
-      lineHeight: 14,
+      fontSize: 11,
       fontWeight: "900",
-      maxWidth: 72,
-      textAlign: "right"
+      textAlign: "right",
+      minWidth: 60,
+      textTransform: "uppercase",
+      fontVariant: ["tabular-nums"]
     }
   });
 }

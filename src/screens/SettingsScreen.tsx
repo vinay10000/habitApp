@@ -8,7 +8,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { isHabitActiveOnDate } from "@/features/habits/schedule";
 import { CONTRACT_VERSION } from "@/lib/contract-version";
 import { toDateKey } from "@/lib/dates";
-import { cancelDailyReminder, scheduleDailyReminder } from "@/lib/reminders";
+import { syncReminderSchedule } from "@/lib/reminders";
 import { useAuthStore } from "@/store/authStore";
 import { useHabitStore } from "@/store/habitStore";
 import { type ThemeName, useSettingsStore } from "@/store/settingsStore";
@@ -39,6 +39,7 @@ export default function SettingsScreen() {
   const loadSettings = useSettingsStore((state) => state.load);
   const dailyReminder = useSettingsStore((state) => state.dailyReminder);
   const reminderHour = useSettingsStore((state) => state.reminderHour);
+  const habitReminders = useSettingsStore((state) => state.habitReminders);
   const setReminderHour = useSettingsStore((state) => state.setReminderHour);
   const toggle = useSettingsStore((state) => state.toggle);
   const signedIn = userId !== "local-user";
@@ -51,16 +52,12 @@ export default function SettingsScreen() {
   }, [loadSettings]);
 
   useEffect(() => {
-    if (dailyReminder) {
-      void scheduleDailyReminder(remaining, reminderHour).catch(() => undefined);
-    } else {
-      void cancelDailyReminder().catch(() => undefined);
-    }
-  }, [dailyReminder, remaining, reminderHour]);
+    void syncReminderSchedule({ habits: allHabits, completions, dailyReminder, reminderHour, habitReminders }).catch(() => undefined);
+  }, [allHabits, completions, dailyReminder, habitReminders, reminderHour, remaining]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHeader showBack={false} eyebrow="Settings" title="Make it yours." />
 
         <View style={styles.accountPanel}>
@@ -100,6 +97,16 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Reminders</Text>
           <SettingToggle title="Daily reminder" subtitle={`A quiet nudge around ${reminderHour}:00 for unfinished habits.`} value={dailyReminder} onChange={() => toggle("dailyReminder")} styles={styles} colors={colors} />
+          <Pressable onPress={() => router.push("/notifications")} style={styles.notificationLink}>
+            <View style={styles.notificationIcon}>
+              <Ionicons name="notifications-outline" size={18} color={colors.accent} />
+            </View>
+            <View style={styles.notificationCopy}>
+              <Text style={styles.notificationTitle}>Habit reminders</Text>
+              <Text style={styles.notificationSubtitle}>Set custom reminder times or use the default nudge.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Pressable>
            <View style={styles.hourRow}>
              {hourOptions.map((hour) => {
                const active = reminderHour === hour;
@@ -168,7 +175,7 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
     },
     accountPanel: {
       minHeight: 72,
-      borderRadius: radius.lg,
+      borderRadius: radius.xl,
       padding: spacing.md,
       backgroundColor: colors.surface,
       borderWidth: 1,
@@ -215,7 +222,8 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
       fontWeight: "900"
     },
     section: {
-      gap: spacing.md
+      gap: spacing.md,
+      paddingTop: spacing.xs
     },
     sectionTitle: {
       color: colors.text,
@@ -230,7 +238,7 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
     themeCard: {
       width: "48%",
       minHeight: 118,
-      borderRadius: radius.lg,
+      borderRadius: radius.xl,
       padding: spacing.md,
       backgroundColor: colors.surface,
       borderWidth: 1,
@@ -269,7 +277,7 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
     toggleRow: {
       minHeight: 70,
       padding: spacing.md,
-      borderRadius: radius.lg,
+      borderRadius: radius.xl,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.line,
@@ -297,6 +305,40 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
       flexDirection: "row",
       flexWrap: "wrap",
       gap: spacing.sm
+    },
+    notificationLink: {
+      minHeight: 70,
+      padding: spacing.md,
+      borderRadius: radius.lg,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.line,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md
+    },
+    notificationIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: radius.pill,
+      backgroundColor: colors.accentSoft,
+      alignItems: "center",
+      justifyContent: "center"
+    },
+    notificationCopy: {
+      flex: 1,
+      minWidth: 0
+    },
+    notificationTitle: {
+      color: colors.text,
+      fontSize: typography.body,
+      fontWeight: "900"
+    },
+    notificationSubtitle: {
+      color: colors.textMuted,
+      fontSize: typography.meta,
+      lineHeight: 18,
+      fontWeight: "700"
     },
     hourChip: {
       minHeight: 40,

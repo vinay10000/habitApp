@@ -9,6 +9,7 @@ import { createUuid } from "@/lib/ids";
 import { enqueueOfflineAction, flushOfflineQueue } from "@/lib/offlineQueue";
 import { getAndroidRecordingStatus, startAndroidVoiceRecording, stopAndroidVoiceRecording } from "@/lib/voiceRecording";
 import { createWidgetSnapshot, persistWidgetSnapshot } from "@/lib/widgetSnapshot";
+import { useSettingsStore } from "@/store/settingsStore";
 import {
   createRemoteHabit,
   deleteRemoteCompletion,
@@ -43,6 +44,52 @@ type NewHabitInput = {
   timeOfDay: TimeOfDay;
   targetCount?: number;
 };
+
+function parseReminderHour(text: string) {
+  const match = text.match(/\b(?:at\s*)?(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\b/i);
+
+  if (!match) {
+    return null;
+  }
+
+  let hour = Number(match[1]);
+  const minute = match[2] ? Number(match[2]) : 0;
+  const meridiem = match[3]?.toLowerCase();
+
+  if (!Number.isFinite(hour) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return null;
+  }
+
+  if (meridiem?.startsWith("p") && hour < 12) {
+    hour += 12;
+  }
+
+  if (meridiem?.startsWith("a") && hour === 12) {
+    hour = 0;
+  }
+
+  return { hour, minute };
+}
+
+function formatReminderTime(hour: number, minute = 0) {
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function explicitScheduleFromText(normalized: string): Schedule | null {
+  if (/\b(weekdays|weekday)\b/.test(normalized)) return { kind: "weekdays" };
+  if (/\b(weekends|weekend)\b/.test(normalized)) return { kind: "weekends" };
+  if (/\b(tomorrow)\b/.test(normalized)) return { kind: "oneTime", date: toDateKey(new Date(Date.now() + 86_400_000)) };
+  if (/\b(today|once|one time|one-time)\b/.test(normalized)) return { kind: "oneTime", date: toDateKey() };
+  if (/\b(monthly|every month)\b/.test(normalized)) return { kind: "monthly", dayOfMonth: new Date().getDate() };
+  if (/\b(daily|every day|each day)\b/.test(normalized)) return { kind: "daily" };
+  return null;
+}
+
+function timeOfDayFromHour(hour: number): TimeOfDay {
+  if (hour < 12) return "morning";
+  if (hour < 17) return "afternoon";
+  return "evening";
+}
 
 type VoiceFlowState = "idle" | "recording" | "transcribing" | "parsing" | "preview" | "applied";
 
@@ -213,20 +260,14 @@ function localAICommand(transcript: string, habits: Habit[]): AICommandResult {
 
   const title = transcript
     .replace(/^(create|add|start|build)\s+/i, "")
+    .replace(/\s+(at\s*)?\d{1,2}(:\d{2})?\s*(a\.?m\.?|p\.?m\.?)?/i, "")
     .replace(/\s+(today|tomorrow|once|one time|one-time|daily|every day|weekdays|weekends|nightly|monthly|morning|afternoon|evening|night).*$/i, "")
     .trim();
-  const schedule: Schedule = normalized.includes("weekday")
-    ? { kind: "weekdays" }
-    : normalized.includes("weekend")
-      ? { kind: "weekends" }
-      : normalized.includes("tomorrow")
-        ? { kind: "oneTime", date: toDateKey(new Date(Date.now() + 86_400_000)) }
-        : /today|once|one time|one-time/.test(normalized)
-          ? { kind: "oneTime", date: toDateKey() }
-      : normalized.includes("monthly")
-        ? { kind: "monthly", dayOfMonth: new Date().getDate() }
-        : { kind: "daily" };
-  const timeOfDay: TimeOfDay = normalized.includes("morning")
+  const explicitSchedule = explicitScheduleFromText(normalized);
+  const reminder = parseReminderHour(transcript);
+  const timeOfDay: TimeOfDay = reminder
+    ? timeOfDayFromHour(reminder.hour)
+    : normalized.includes("morning")
     ? "morning"
     : normalized.includes("afternoon")
       ? "afternoon"
@@ -248,18 +289,37 @@ function localAICommand(transcript: string, habits: Habit[]): AICommandResult {
     return { kind: "needsPreview", reason: "I need a habit name before creating it.", transcript };
   }
 
+  if (!explicitSchedule || !reminder) {
+    const missing = [
+      !reminder ? "reminder time" : null,
+      !explicitSchedule ? "repeat" : null
+    ].filter(Boolean).join(" and ");
+
+    return { kind: "needsPreview", reason: `I need ${missing} before creating this habit.`, transcript };
+  }
+
   return {
     kind: "createHabit",
     confidence: normalized.length > 8 ? "high" : "medium",
     draft: {
       title: title.replace(/^./, (letter) => letter.toUpperCase()),
       type,
-      schedule,
+      schedule: explicitSchedule,
       timeOfDay,
       category,
-      targetCount: type === "timer" ? 25 : undefined
+      targetCount: type === "timer" ? 25 : undefined,
+      reminderTime: formatReminderTime(reminder.hour, reminder.minute)
     }
   };
+}
+
+function reminderHourFromTime(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const [hour] = value.split(":").map(Number);
+  return Number.isFinite(hour) ? Math.min(23, Math.max(0, Math.round(hour))) : null;
 }
 
 export const useHabitStore = create<HabitStore>((set, get) => ({
@@ -279,12 +339,13 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
   addHabit: (input) => {
     const now = new Date().toISOString();
     const userId = get().userId;
+    const { reminderTime: _reminderTime, ...habitInput } = input as NewHabitInput & { reminderTime?: string };
     const habit: Habit = {
       id: createUuid(),
       userId,
       streak: 0,
       createdAt: now,
-      ...input
+      ...habitInput
     };
 
     set((state) => {
@@ -606,6 +667,11 @@ export const useHabitStore = create<HabitStore>((set, get) => ({
 
     if (result.kind === "createHabit") {
       const habit = get().addHabit(result.draft);
+      const reminderHour = reminderHourFromTime(result.draft.reminderTime);
+
+      if (reminderHour !== null) {
+        useSettingsStore.getState().setHabitReminder(habit.id, { mode: "custom", hour: reminderHour });
+      }
       set({ lastUndo: { kind: "createdHabits", habits: [habit] }, pendingAIResult: null, voiceFlowState: "applied" });
       return;
     }

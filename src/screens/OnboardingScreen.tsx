@@ -30,6 +30,8 @@ const screens = [
   }
 ];
 
+const defaultDisplayName = "Alex";
+
 function permissionCopy(permission: PermissionState) {
   if (permission === "granted") {
     return "Allowed";
@@ -95,7 +97,8 @@ export default function OnboardingScreen() {
   const screen = screens[step];
   const onFinalStep = step === screens.length - 1;
   const trimmedName = name.trim();
-  const canContinue = !onFinalStep || trimmedName.length > 0;
+  const displayName = trimmedName || defaultDisplayName;
+  const canContinue = true;
 
   const requestNotifications = async () => {
     setBusyPermission("notification");
@@ -127,12 +130,8 @@ export default function OnboardingScreen() {
       return;
     }
 
-    if (!name.trim()) {
-      return;
-    }
-
-    await complete(name);
-    router.replace("/" as Href);
+    await complete(displayName);
+    router.replace("/auth/sign-up" as Href);
   };
 
   return (
@@ -197,18 +196,18 @@ export default function OnboardingScreen() {
               <View style={styles.namePanel}>
                 <View style={styles.namePreviewRow}>
                   <View style={styles.nameAvatar}>
-                    <Text style={styles.nameAvatarText}>{initialsForName(name)}</Text>
+                    <Text style={styles.nameAvatarText}>{initialsForName(displayName)}</Text>
                   </View>
                   <View style={styles.namePreviewCopy}>
                     <Text style={styles.inputLabel}>Profile name</Text>
-                    <Text style={styles.namePreview} numberOfLines={1}>{trimmedName || "Your name"}</Text>
+                    <Text style={styles.namePreview} numberOfLines={1}>{displayName}</Text>
                   </View>
                 </View>
                 <View style={styles.inputShell}>
                   <TextInput
                     value={name}
                     onChangeText={setName}
-                    placeholder="Alex"
+                    placeholder={defaultDisplayName}
                     placeholderTextColor={colors.textMuted}
                     autoCapitalize="words"
                     autoCorrect={false}
@@ -222,7 +221,7 @@ export default function OnboardingScreen() {
                   />
                   <Ionicons name={trimmedName ? "checkmark-circle" : "create-outline"} size={22} color={trimmedName ? colors.accent : colors.textMuted} />
                 </View>
-                <Text style={styles.inputHint}>This appears in your home header. You can change it later.</Text>
+                <Text style={styles.inputHint} numberOfLines={1}>Shown in your home header. Change it later in Settings.</Text>
               </View>
             ) : null}
           </View>
@@ -307,7 +306,7 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
       flexGrow: 1,
       padding: spacing.lg,
       paddingTop: spacing.sm,
-      paddingBottom: 104,
+      paddingBottom: 164,
       gap: spacing.lg,
       justifyContent: "space-between"
     },
@@ -483,7 +482,7 @@ function createStyles({ colors, spacing, radius, typography }: ThemeTokens) {
       color: colors.accentText
     },
     namePanel: {
-      gap: spacing.md
+      gap: spacing.sm
     },
     namePreviewRow: {
       minHeight: 76,

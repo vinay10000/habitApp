@@ -1,25 +1,25 @@
 import type { ThemeName } from "@/store/settingsStore";
 
 const glacierColors = {
-  background: "#10120F",
-  surface: "#171A16",
-  surfaceMuted: "#20251E",
-  surfaceElevated: "#24291F",
-  text: "#F6F3EA",
-  textMuted: "#A9AF9E",
-  line: "#30372D",
-  lineStrong: "#49513F",
-  accent: "#D7F66D",
-  accentSoft: "#31401F",
-  accentText: "#151807",
-  tertiary: "#8ED8C5",
-  tertiarySoft: "#1E3A35",
+  background: "#0C0F0D",
+  surface: "#171A18",
+  surfaceMuted: "#202521",
+  surfaceElevated: "#242A26",
+  text: "#F4F7F1",
+  textMuted: "#9EA99F",
+  line: "#2B322D",
+  lineStrong: "#3E4941",
+  accent: "#B7F269",
+  accentSoft: "#26381F",
+  accentText: "#0F160B",
+  tertiary: "#6FD5C1",
+  tertiarySoft: "#1B3632",
   warning: "#FFB86B",
   danger: "#FF8A7A",
   success: "#8ED8A7",
   glow: "rgba(215, 246, 109, 0.22)",
   whiteGlass: "rgba(255, 255, 255, 0.08)",
-  nav: "#151812",
+  nav: "#171A18",
   overlay: "rgba(16, 18, 15, 0.82)",
   statusBar: "light" as const
 } as const;
@@ -47,9 +47,9 @@ const themeColors = {
   },
   paper: {
     ...glacierColors,
-    background: "#F5F1E6",
-    surface: "#FFFDF6",
-    surfaceMuted: "#EBE4D2",
+    background: "#F7F4EC",
+    surface: "#FFFDF8",
+    surfaceMuted: "#ECE6D8",
     surfaceElevated: "#FFFFFF",
     text: "#25231D",
     textMuted: "#706D60",
@@ -71,12 +71,12 @@ const themeColors = {
   },
   pastel: {
     ...glacierColors,
-    background: "#14151D",
-    surface: "#1F2230",
-    surfaceMuted: "#2A2F3E",
-    surfaceElevated: "#303448",
-    accent: "#F2C36B",
-    accentSoft: "#493D25",
+    background: "#11131B",
+    surface: "#1B1F2A",
+    surfaceMuted: "#252B38",
+    surfaceElevated: "#2C3242",
+    accent: "#F0C36A",
+    accentSoft: "#433721",
     accentText: "#201406",
     tertiary: "#84C8E8",
     tertiarySoft: "#203848",
@@ -116,15 +116,15 @@ export const spacing = {
 } as const;
 
 export const radius = {
-  sm: 6,
-  md: 8,
-  lg: 12,
-  xl: 16,
+  sm: 7,
+  md: 10,
+  lg: 14,
+  xl: 18,
   pill: 999
 } as const;
 
 export const typography = {
-  title: 30,
+  title: 34,
   section: 14,
   body: 16,
   meta: 13,
